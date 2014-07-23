@@ -28,14 +28,21 @@ public class SpriterBitmapDrawer extends Drawer<Bitmap>{
         this._bitmapPaint.setAntiAlias(true);
     }
     
-    public void setCanvas(final Canvas canvas) {
+    public int attachCanvas(final Canvas canvas) {
         this._canvas = canvas;
+        
+        final int saveCount = this._canvas.save();
+        this._canvas.scale(1, -1);
+        this._canvas.translate(0, -this._canvas.getHeight());
+        
+        return saveCount;
     }
     
-    public Canvas getCanvas() {
-        return _canvas;
+    public void detachCanvas(final int saveCount) {
+        this._canvas.restoreToCount(saveCount);
+        this._canvas = null;
     }
-
+    
     @Override
     public void setColor(float r, float g, float b, float a) {
         float[] src = new float[]{
@@ -43,23 +50,23 @@ public class SpriterBitmapDrawer extends Drawer<Bitmap>{
                     0, g, 0, 0, 0,
                     0, 0, b, 0, 0, 
                     0, 0, 0, a, 0};
-        _colorMatrix.set(src);
-        _geomPaint.setColorFilter(new ColorMatrixColorFilter(_colorMatrix));
+        this._colorMatrix.set(src);
+        this._geomPaint.setColorFilter(new ColorMatrixColorFilter(this._colorMatrix));
     }
 
     @Override
     public void line(float x1, float y1, float x2, float y2) {
-        _canvas.drawLine(x1, y1, x2, y2, _geomPaint);
+        this._canvas.drawLine(x1, y1, x2, y2, this._geomPaint);
     }
 
     @Override
     public void rectangle(float x, float y, float width, float height) {
-        _canvas.drawRect(x, y, x+width, y+height, _geomPaint);          
+        this._canvas.drawRect(x, y, x+width, y+height, this._geomPaint);          
     }
 
     @Override
     public void circle(float x, float y, float radius) {
-        _canvas.drawCircle(x, y, radius, _geomPaint);
+        this._canvas.drawCircle(x, y, radius, this._geomPaint);
     }
 
 //    @Override
@@ -92,29 +99,30 @@ public class SpriterBitmapDrawer extends Drawer<Bitmap>{
     @Override
     public void draw(Object object) {
         
-        final int saveCount = this._canvas.save();
-        
-        this._canvas.scale(1,  -1);
-        this._canvas.translate(0, -_canvas.getHeight());
-        
+        // calc draw params
         final Bitmap bitmap = loader.get(object.ref);
         float newPivotX = bitmap.getWidth() * object.pivot.x;
         float newX = object.position.x - newPivotX*Math.signum(object.scale.x);
         float newPivotY = bitmap.getHeight() * object.pivot.y;
         float newY = object.position.y - newPivotY*Math.signum(object.scale.y);
-        this._canvas.rotate( object.angle, object.position.x, object.position.y);
         
         float width = bitmap.getWidth()*object.scale.x;
         float height = -bitmap.getHeight()*object.scale.y;
         
         final RectF rectf = new RectF(newX, newY-height, newX + width, newY);
+
+        //  save canvas state and rotate, scale and translate
+        final int saveCount = this._canvas.save();
+        
+        this._canvas.rotate( object.angle, object.position.x, object.position.y);
         
         adjustRectAndScaleCanvas(rectf, _canvas);
 
         this._bitmapPaint.setAlpha( (int)(object.alpha * 255) );
         
-        _canvas.drawBitmap(bitmap, null, rectf, this._bitmapPaint);
+        this._canvas.drawBitmap(bitmap, null, rectf, this._bitmapPaint);
         
+        // restore canvas state
         this._canvas.restoreToCount(saveCount);
     }
 
